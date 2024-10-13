@@ -1,16 +1,21 @@
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework import serializers
 
+from v1.favorites.serializers import FavoriteSerializer
+
 CustomUser = get_user_model()
 
 
 class CustomUserSerializer(serializers.ModelSerializer):
+    favorite = FavoriteSerializer(read_only=True)
+
     class Meta:
         model = CustomUser
         fields = (
             "id",
             "name",
             "email",
+            "favorite",
         )
 
 

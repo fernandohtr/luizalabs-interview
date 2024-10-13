@@ -20,3 +20,10 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.email
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not hasattr(self, "favorite"):
+            from v1.favorites.models import Favorite
+
+            Favorite.objects.get_or_create(user=self)
