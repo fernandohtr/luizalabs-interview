@@ -1,0 +1,53 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./docker/local/django/Dockerfile
+    container_name: luizalabs-api
+    restart: always
+    volumes:
+      - ./src:/app
+    expose:
+      - 8000
+    env_file:
+      - ./.envs/.local
+    depends_on:
+      - postgres
+    command: /start.sh
+    networks:
+      - luizalabs-net
+    stdin_open: true
+    tty: true
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: luizalabs-postgres
+    env_file:
+      - ./.envs/.local
+    networks:
+      - luizalabs-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: luizalabs-redis
+    env_file:
+      - ./.envs/.local
+    networks:
+      - luizalabs-net
+
+  nginx:
+    build:
+      context: ./docker/local/nginx/
+      dockerfile: Dockerfile
+    container_name: luizalabs-nginx
+    restart: always
+    ports:
+      - 8080:8080
+    depends_on:
+      - api
+    networks:
+      - luizalabs-net
+
+networks:
+  luizalabs-net:
+    driver: bridge
