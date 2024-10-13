@@ -1,7 +1,7 @@
 import factory
 from faker import Factory as FakerFactory
 
-from v1.favorites.models import Favorite, FavoriteProduct, Product
+from v1.favorites.models import FavoriteProduct, Product
 from v1.users.tests.factories import CustomUserFactory
 
 faker = FakerFactory.create()
@@ -18,36 +18,9 @@ class ProductFactory(factory.django.DjangoModelFactory):
     review_score = factory.Faker("pyint", min_value=1, max_value=5)
 
 
-class FavoriteFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Favorite
-
-    user = factory.SubFactory(CustomUserFactory)
-
-
-class FavoriteWithProductFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Favorite
-
-    user = factory.SubFactory(CustomUserFactory)
-
-    @factory.post_generation
-    def products(self, create, extracted, **kwargs):
-        if not create:
-            return
-
-        if extracted:
-            for product in extracted:
-                self.products.add(product)
-        else:
-            for _ in range(5):
-                product = ProductFactory()
-                self.products.add(product)
-
-
 class FavoriteProductFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = FavoriteProduct
 
-    favorite = factory.SubFactory(FavoriteWithProductFactory)
+    favorite = factory.LazyAttribute(lambda _: CustomUserFactory().favorite)
     product = factory.SubFactory(ProductFactory)

@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
@@ -7,7 +8,7 @@ CustomUser = get_user_model()
 
 
 class Favorite(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="favorite_products")
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="favorite")
     products = models.ManyToManyField("Product", through="FavoriteProduct", blank=True)
 
 
@@ -30,3 +31,12 @@ def create_product_link(sender, instance, **kwargs):
 class FavoriteProduct(models.Model):
     favorite = models.ForeignKey(Favorite, on_delete=models.SET_NULL, blank=True, null=True)
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, blank=True, null=True)
+
+    class Meta:
+        unique_together = ["favorite", "product"]
+
+
+@receiver(pre_save, sender=FavoriteProduct)
+def prevent_duplicate_favorite(sender, instance, **kwargs):
+    if FavoriteProduct.objects.filter(favorite=instance.favorite, product=instance.product).exists():
+        raise ValidationError(f"The product {instance.product.id} is already in the favorites.")
