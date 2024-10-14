@@ -155,3 +155,7 @@ rodando, acesse um dos seguintes endpoints:
 [http://127.0.0.1:8080/api/schema/swagger/](http://127.0.0.1:8080/api/schema/swagger/)
 
 [http://127.0.0.1:8080/api/schema/redoc/](http://127.0.0.1:8080/api/schema/redoc/)
+
+## Licença
+
+Esse projeto está sob a licença `MIT License`. Acesse [aqui](./LICENSE.md) para mais detalhes.
