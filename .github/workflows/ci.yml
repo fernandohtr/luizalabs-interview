@@ -1,0 +1,19 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: UnitTest with pytest
+      run: |
+        docker compose -f local.yml up -d
+        docker compose -f local.yml run --rm api pytest -p no:warnings --cov=/app/
