@@ -1,12 +1,9 @@
 import pytest
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 
+from v1.customers.tests.factories import CustomerFactory, CustomerWithProductsFactory
 from v1.favorites.models import FavoriteProduct
 from v1.favorites.tests.factories import ProductFactory
-from v1.users.tests.factories import CustomUserFactory, CustomUserWithProductsFactory
-
-CustomUser = get_user_model()
 
 
 @pytest.mark.django_db
@@ -21,27 +18,27 @@ def test_product_creation():
 
 
 @pytest.mark.django_db
-def test_favorite_creation(normal_user):
-    favorite = normal_user.favorite
-    assert favorite.user is not None
+def test_favorite_creation(customer):
+    favorite = customer.favorite
+    assert favorite.customer is not None
     assert favorite.products.count() == 0
 
-    user = CustomUserWithProductsFactory()
-    favorite = user.favorite
+    new_customer = CustomerWithProductsFactory()
+    favorite = new_customer.favorite
     number_of_products = 5
-    assert favorite.user is not None
+    assert favorite.customer is not None
     assert favorite.products.count() == number_of_products
 
 
 @pytest.mark.django_db
-def test_favorite_with_specific_products(normal_user):
+def test_favorite_with_specific_products(customer):
     product1 = ProductFactory(title="Video Game")
     product2 = ProductFactory(title="TV")
-    favorite = normal_user.favorite
+    favorite = customer.favorite
     FavoriteProduct.objects.create(favorite=favorite, product=product1)
     FavoriteProduct.objects.create(favorite=favorite, product=product2)
 
-    assert favorite.user is not None
+    assert favorite.customer is not None
     number_of_products = 2
     assert favorite.products.count() == number_of_products
     assert product1 in favorite.products.all()
@@ -54,12 +51,12 @@ def test_favorite_with_specific_products(normal_user):
 def test_favorite_product_in_two_favorite_lists():
     product = ProductFactory(title="Video Game")
 
-    user1 = CustomUserFactory()
-    favorite1 = user1.favorite
+    customer1 = CustomerFactory()
+    favorite1 = customer1.favorite
     FavoriteProduct.objects.create(favorite=favorite1, product=product)
 
-    user2 = CustomUserFactory()
-    favorite2 = user2.favorite
+    customer2 = CustomerFactory()
+    favorite2 = customer2.favorite
     FavoriteProduct.objects.create(favorite=favorite2, product=product)
 
     assert favorite1.products.first().title == product.title
@@ -67,9 +64,9 @@ def test_favorite_product_in_two_favorite_lists():
 
 
 @pytest.mark.django_db
-def test_favorite_two_products_favorite_lists_raise_error(normal_user):
+def test_favorite_two_products_favorite_lists_raise_error(customer):
     product = ProductFactory()
-    favorite = normal_user.favorite
+    favorite = customer.favorite
 
     FavoriteProduct.objects.create(favorite=favorite, product=product)
 

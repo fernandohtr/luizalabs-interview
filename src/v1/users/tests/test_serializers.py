@@ -1,7 +1,6 @@
 import pytest
-from rest_framework.exceptions import ValidationError
 
-from v1.users.serializers import CustomUserLoginSerializer, CustomUserRegistrationSerializer, CustomUserSerializer
+from v1.users.serializers import CustomUserLoginSerializer, CustomUserSerializer
 from v1.users.tests.factories import CustomUserFactory
 
 
@@ -10,51 +9,6 @@ def test_custom_user_serializer(normal_user):
     serializer = CustomUserSerializer(normal_user)
     assert "id" in serializer.data
     assert "email" in serializer.data
-    assert "name" in serializer.data
-
-
-@pytest.mark.django_db
-def test_custom_register_serializer_validate_data():
-    valid_data = {
-        "email": "test@example.com",
-        "name": "John",
-        "password1": "test_password",
-        "password2": "test_password",
-    }
-    serializer = CustomUserRegistrationSerializer(data=valid_data)
-    assert serializer.is_valid()
-
-    user = serializer.save()
-    assert user.email == valid_data["email"]
-    assert user.name == valid_data["name"]
-
-
-@pytest.mark.django_db
-def test_custom_register_serializer_raise_error_wrong_password():
-    invalid_data = {
-        "email": "test@example.com",
-        "name": "John",
-        "password1": "test_password",
-        "password2": "wrong_password",
-    }
-    serializer = CustomUserRegistrationSerializer(data=invalid_data)
-
-    with pytest.raises(ValidationError):
-        serializer.is_valid(raise_exception=True)
-
-
-@pytest.mark.django_db
-def test_custom_register_serializer_raise_error_password_with_less_then_8_chars():
-    invalid_data = {
-        "email": "test@example.com",
-        "name": "John",
-        "password1": "1234",
-        "password2": "1234",
-    }
-    serializer = CustomUserRegistrationSerializer(data=invalid_data)
-
-    with pytest.raises(ValidationError):
-        serializer.is_valid(raise_exception=True)
 
 
 @pytest.mark.django_db

@@ -1,12 +1,12 @@
 import pytest
 from django.contrib.auth import get_user_model
 
-User = get_user_model()
+CustomUser = get_user_model()
 
 
 @pytest.mark.django_db
 def test_create_normal_user(normal_user):
-    assert normal_user.name is not None
+    assert normal_user.username is not None
     assert normal_user.email is not None
     assert normal_user.password is not None
     assert normal_user.is_active
@@ -16,7 +16,7 @@ def test_create_normal_user(normal_user):
 
 @pytest.mark.django_db
 def test_create_super_user(super_user):
-    assert super_user.name is not None
+    assert super_user.username is not None
     assert super_user.email is not None
     assert super_user.password is not None
     assert super_user.is_active
@@ -26,12 +26,12 @@ def test_create_super_user(super_user):
 
 @pytest.mark.django_db
 def test_update_user(normal_user):
-    new_name = "John"
-    normal_user.name = new_name
+    new_username = "John"
+    normal_user.username = new_username
     normal_user.save()
-    updated_user = User.objects.get(pk=normal_user.pk)
+    updated_user = CustomUser.objects.get(pk=normal_user.pk)
 
-    assert updated_user.name == new_name
+    assert updated_user.username == new_username
 
 
 @pytest.mark.django_db
@@ -39,8 +39,8 @@ def test_delete_user(normal_user):
     user_pk = normal_user.pk
     normal_user.delete()
 
-    with pytest.raises(User.DoesNotExist):
-        User.objects.get(pk=user_pk)
+    with pytest.raises(CustomUser.DoesNotExist):
+        CustomUser.objects.get(pk=user_pk)
 
 
 @pytest.mark.django_db
@@ -65,13 +65,6 @@ def test_user_email_incorrect(custom_user_factory):
     with pytest.raises(ValueError) as error:  # noqa: PT011
         custom_user_factory.create(email="failmail.com")
     assert str(error.value) == "You must provide a valid email address."
-
-
-@pytest.mark.django_db
-def test_create_user_with_no_name(custom_user_factory):
-    with pytest.raises(ValueError) as error:  # noqa: PT011
-        custom_user_factory.create(name=None)
-    assert str(error.value) == "User must have a name."
 
 
 @pytest.mark.django_db

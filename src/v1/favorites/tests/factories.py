@@ -1,8 +1,8 @@
 import factory
 from faker import Factory as FakerFactory
 
+from v1.customers.tests.factories import CustomerFactory
 from v1.favorites.models import FavoriteProduct, Product
-from v1.users.tests.factories import CustomUserFactory
 
 faker = FakerFactory.create()
 
@@ -22,5 +22,5 @@ class FavoriteProductFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = FavoriteProduct
 
-    favorite = factory.LazyAttribute(lambda _: CustomUserFactory().favorite)
+    favorite = factory.LazyAttribute(lambda _: CustomerFactory().favorite)
     product = factory.SubFactory(ProductFactory)

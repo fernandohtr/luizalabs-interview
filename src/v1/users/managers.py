@@ -15,16 +15,14 @@ class CustomUserManager(BaseUserManager):
         except ValidationError:
             raise ValueError(_("You must provide a valid email address."))
 
-    def create_user(self, name: str, email: str, password: str, **extra_fields: Any):
-        if not name:
-            raise ValueError(_("User must have a name."))
+    def create_user(self, email: str, password: str, **extra_fields: Any):
         if email:
             email = self.normalize_email(email)
             self.email_validator(email)
         else:
             raise ValueError(_("User must have an email address."))
 
-        user = self.model(name=name, email=email, **extra_fields)
+        user = self.model(email=email, **extra_fields)
         user.set_password(password)
 
         extra_fields.setdefault("is_staff", False)
@@ -33,7 +31,7 @@ class CustomUserManager(BaseUserManager):
         user.save()
         return user
 
-    def create_superuser(self, name: str, email: str, password: str, **extra_fields: Any):
+    def create_superuser(self, email: str, password: str, **extra_fields: Any):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
@@ -53,6 +51,6 @@ class CustomUserManager(BaseUserManager):
         else:
             raise ValueError(_("Superuser must have an email address."))
 
-        user = self.create_user(name=name, email=email, password=password, **extra_fields)
+        user = self.create_user(email=email, password=password, **extra_fields)
         user.save(using=self._db)
         return user

@@ -1,14 +1,13 @@
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
-CustomUser = get_user_model()
+from v1.customers.models import Customer
 
 
 class Favorite(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="favorite")
+    customer = models.OneToOneField(Customer, on_delete=models.CASCADE, related_name="favorite")
     products = models.ManyToManyField("Product", through="FavoriteProduct", blank=True)
 
 

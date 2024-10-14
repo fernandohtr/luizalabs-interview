@@ -1,8 +1,12 @@
 from django.urls import path
 
-from v1.favorites.views import ProductCreateDestroyView, ProductListView
+from v1.favorites.views import AddFavoriteProductView, DeleteFavoriteProductView
 
 urlpatterns = [
-    path("favorites/products/", ProductListView.as_view(), name="user_product_list"),
-    path("favorites/products/<int:product_id>/", ProductCreateDestroyView.as_view(), name="product_create_destroy"),
+    path("customers/<int:customer_id>/", AddFavoriteProductView.as_view(), name="add_favorite_product"),
+    path(
+        "customers/<int:customer_id>/products/<int:product_id>/",
+        DeleteFavoriteProductView.as_view(),
+        name="delete_favorite_product",
+    ),
 ]

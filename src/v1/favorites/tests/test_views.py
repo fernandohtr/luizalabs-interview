@@ -5,235 +5,220 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from v1.customers.tests.factories import CustomerWithProductsFactory
 from v1.favorites.models import FavoriteProduct, Product
-from v1.favorites.serializers import ProductSerializer
-from v1.users.tests.factories import CustomUserWithProductsFactory
+from v1.favorites.tests.factories import ProductFactory
 
 
-@responses.activate
 @pytest.mark.django_db
-def test_add_existing_product_to_favorites(api_client_authenticated, normal_user, product):
-    url = reverse("product_create_destroy", args=[product.id])
+def test_add_product_to_favorites_from_cache(api_user_authenticated, customer, product):
+    cache.set(
+        product.id,
+        {
+            "id": product.id,
+            "title": product.title,
+            "image": product.image,
+            "price": str(product.price),
+            "review_score": product.review_score,
+        },
+    )
 
-    response = api_client_authenticated.post(url)
-
-    favorite = normal_user.favorite
+    url = reverse("add_favorite_product", args=[customer.id])
+    response = api_user_authenticated.post(url, {"product_id": product.id})
 
     assert response.status_code == status.HTTP_201_CREATED
-    assert FavoriteProduct.objects.filter(favorite=favorite, product=product).exists()
+    assert FavoriteProduct.objects.filter(favorite=customer.favorite, product=product).exists()
 
 
-@responses.activate
 @pytest.mark.django_db
-def test_add_new_product_to_favorites(api_client_authenticated, normal_user):
-    product_id = 2
-    url = reverse("product_create_destroy", args=[product_id])
-    api_url = f"http://challenge-api.luizalabs.com/api/product/{product_id}/"
-    favorite = normal_user.favorite
+def test_add_product_to_favorites_from_database(api_user_authenticated, customer, product):
+    url = reverse("add_favorite_product", args=[customer.id])
+    response = api_user_authenticated.post(url, {"product_id": product.id})
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert FavoriteProduct.objects.filter(favorite=customer.favorite, product=product).exists()
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_add_product_to_favorites_from_external_api(api_user_authenticated, customer):
+    product = ProductFactory()
 
     responses.add(
         responses.GET,
-        api_url,
+        f"http://challenge-api.luizalabs.com/api/product/{product.id}/",
         json={
-            "id": product_id,
-            "title": "New Product",
-            "image": "http://example.com/new_image.jpg",
-            "price": "49.99",
-            "reviewScore": 4,
+            "id": product.id,
+            "title": product.title,
+            "image": product.image,
+            "price": product.price,
+            "review_score": product.review_score,
         },
         status=200,
     )
 
-    response = api_client_authenticated.post(url)
+    url = reverse("add_favorite_product", args=[customer.id])
+    response = api_user_authenticated.post(url, {"product_id": product.id})
 
     assert response.status_code == status.HTTP_201_CREATED
-    new_product = Product.objects.get(id=product_id)
-    assert FavoriteProduct.objects.filter(favorite=favorite, product=new_product).exists()
+    assert FavoriteProduct.objects.filter(favorite=customer.favorite, product__id=product.id).exists()
 
 
-@responses.activate
 @pytest.mark.django_db
-def test_add_non_existent_product(api_client_authenticated, normal_user):
-    product_id = 3
-    url = reverse("product_create_destroy", args=[product_id])
-    api_url = f"http://challenge-api.luizalabs.com/api/product/{product_id}/"
-
-    responses.add(responses.GET, api_url, status=404)
-
-    response = api_client_authenticated.post(url)
-
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert not Product.objects.filter(id=product_id).exists()
-
-
-@responses.activate
-@pytest.mark.django_db
-def test_add_duplicate_product_to_favorites(api_client_authenticated, normal_user, product):
-    favorite = normal_user.favorite
-    FavoriteProduct.objects.create(favorite=favorite, product=product)
-    url = reverse("product_create_destroy", args=[product.id])
-
-    response = api_client_authenticated.post(url)
+def test_add_product_without_product_id(api_user_authenticated, customer):
+    url = reverse("add_favorite_product", args=[customer.id])
+    response = api_user_authenticated.post(url, {})
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert FavoriteProduct.objects.filter(favorite=favorite, product=product).count() == 1
+    assert response.json().get("error") == "product_id is required."
+
+
+@pytest.mark.django_db
+def test_add_duplicate_product_to_favorites(api_user_authenticated, customer, product):
+    FavoriteProduct.objects.create(favorite=customer.favorite, product=product)
+
+    url = reverse("add_favorite_product", args=[customer.id])
+    response = api_user_authenticated.post(url, {"product_id": product.id})
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json().get("error") == "Product is already in favorites."
 
 
 @pytest.mark.django_db
 @responses.activate
-def test_product_create_destroy_fetch_and_cache_product(api_client_authenticated, normal_user):
-    product_id = 1
-    api_url = f"http://challenge-api.luizalabs.com/api/product/{product_id}/"
+def test_add_product_from_external_api(api_user_authenticated, customer):
+    product_id = 2
     product_data = {
         "id": product_id,
-        "title": "Fetched Product",
-        "image": "http://example.com/image.jpg",
-        "price": "99.99",
-        "reviewScore": 5,
+        "title": "New Product",
+        "image": "http://example.com/new_image.jpg",
+        "price": 150.00,
+        "review_score": 4,
     }
 
-    responses.add(responses.GET, api_url, json=product_data, status=status.HTTP_200_OK)
-    url = reverse("product_create_destroy", kwargs={"product_id": product_id})
+    responses.add(
+        responses.GET, f"http://challenge-api.luizalabs.com/api/product/{product_id}/", json=product_data, status=200
+    )
 
-    assert Product.objects.filter(id=product_id).count() == 0
-
-    response = api_client_authenticated.post(url)
+    url = reverse("add_favorite_product", args=[customer.id])
+    response = api_user_authenticated.post(url, {"product_id": product_id})
 
     assert response.status_code == status.HTTP_201_CREATED
-    assert response.data["detail"] == "Product added to favorites."
 
     product = Product.objects.get(id=product_id)
     assert product.title == product_data["title"]
     assert product.image == product_data["image"]
-    assert str(product.price) == product_data["price"]
-    assert product.review_score == product_data["reviewScore"]
+    assert product.price == product_data["price"]
+    assert product.review_score == product_data["review_score"]
 
-    cache_key = f"product_{product_id}"
-    cached_product_data = cache.get(cache_key)
-    assert cached_product_data == product_data
+    cached_product = cache.get(product_id)
+    assert cached_product is not None
+    assert cached_product["id"] == product_data["id"]
+    assert cached_product["title"] == product_data["title"]
+    assert cached_product["image"] == product_data["image"]
+    assert cached_product["price"] == str(product_data["price"])
+    assert cached_product["review_score"] == product_data["review_score"]
+
+    assert FavoriteProduct.objects.filter(favorite=customer.favorite, product=product).exists()
 
 
 @pytest.mark.django_db
 @responses.activate
-def test_product_create_destroy_product_not_found(api_client_authenticated, normal_user):
-    product_id = 999
-    api_url = f"http://challenge-api.luizalabs.com/api/product/{product_id}/"
-    responses.add(responses.GET, api_url, json={"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-    url = reverse("product_create_destroy", kwargs={"product_id": product_id})
-    response = api_client_authenticated.post(url)
+def test_product_not_found_in_api(api_user_authenticated, customer):
+    responses.add(responses.GET, "http://challenge-api.luizalabs.com/api/product/999/", status=404)
+
+    url = reverse("add_favorite_product", args=[customer.id])
+    response = api_user_authenticated.post(url, {"product_id": 999})
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.data["detail"] == "Product not found."
+    assert response.json().get("error") == "Product not found."
 
 
 @pytest.mark.django_db
-def test_product_create_destroy_already_in_favorites(api_client_authenticated, normal_user):
-    favorite = normal_user.favorite
-    product = Product.objects.create(
-        id=1,
-        title="Existing Product",
-        image="http://example.com/image1.jpg",
-        price="99.99",
-        review_score=5,
-        link="http://example.com/product/1",
-    )
-    FavoriteProduct.objects.create(favorite=favorite, product=product)
-    url = reverse("product_create_destroy", kwargs={"product_id": product.id})
-    response = api_client_authenticated.post(url)
+def test_add_product_with_nonexistent_customer(api_user_authenticated, customer, product):
+    url = reverse("add_favorite_product", args=[9999])
+    response = api_user_authenticated.post(url, {"product_id": product.id})
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data["detail"] == "Product is already in favorites."
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json().get("error") == "Customer not found."
 
 
 @pytest.mark.django_db
-def test_list_user_products():
-    user = CustomUserWithProductsFactory()
-    client = APIClient()
-    client.force_authenticate(user=user)
+def test_add_product_to_favorites_non_authenticated(customer, product):
+    api_client = APIClient()
+    url = reverse("add_favorite_product", args=[customer.id])
+    response = api_client.post(url, {"product_id": product.id})
 
-    url = reverse("user_product_list")
-
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-    number_of_products = 5
-    assert len(response.data) == number_of_products
-    assert "id" in response.data[0]
-    assert "title" in response.data[0]
-    assert "image" in response.data[0]
-    assert "price" in response.data[0]
-    assert "review_score" in response.data[0]
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
-def test_list_user_products_no_review_score(api_client_authenticated, normal_user):
-    favorite = normal_user.favorite
-    product = Product.objects.create(
-        id=1,
-        title="Product With Review Score",
-        image="http://example.com/image1.jpg",
-        price="99.99",
-        link="http://example.com/product/1",
-    )
-    FavoriteProduct.objects.create(favorite=favorite, product=product)
+def test_successful_delete_favorite_product(api_user_authenticated, customer, product):
+    customer = CustomerWithProductsFactory()
+    favorite = customer.favorite
+    existent_product = favorite.products.first()
 
-    ProductSerializer(product)
+    url = reverse("delete_favorite_product", args=[customer.id, existent_product.id])
+    response = api_user_authenticated.delete(url)
 
-    url = reverse("user_product_list")
-
-    response = api_client_authenticated.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 1
-    assert "id" in response.data[0]
-    assert "title" in response.data[0]
-    assert "image" in response.data[0]
-    assert "price" in response.data[0]
-    assert "review_score" not in response.data[0]
-
-
-@pytest.mark.django_db
-def test_remove_from_favorites(api_client_authenticated, normal_user):
-    favorite = normal_user.favorite
-    product = Product.objects.create(
-        id=1,
-        title="Existing Product",
-        image="http://example.com/image1.jpg",
-        price="99.99",
-        review_score=5,
-        link="http://example.com/product/1",
-    )
-    FavoriteProduct.objects.create(favorite=favorite, product=product)
-
-    url = reverse("product_create_destroy", kwargs={"product_id": product.id})
-
-    response = api_client_authenticated.delete(url)
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    assert FavoriteProduct.objects.filter(favorite=favorite, product=product).count() == 0
+    assert not FavoriteProduct.objects.filter(favorite=favorite, product=product).exists()
 
 
 @pytest.mark.django_db
-def test_remove_nonexistent_product(api_client_authenticated, normal_user):
-    url = reverse("product_create_destroy", kwargs={"product_id": 999})
+def test_delete_favorite_product_nonexistent_customer(api_user_authenticated, product):
+    url = reverse("delete_favorite_product", args=[9999, product.id])
+    response = api_user_authenticated.delete(url)
 
-    response = api_client_authenticated.delete(url)
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.data["detail"] == "No Product matches the given query."
+    assert response.json().get("detail") == "No Customer matches the given query."
 
 
 @pytest.mark.django_db
-def test_remove_product_not_in_favorites(api_client_authenticated, normal_user):
-    product = Product.objects.create(
-        id=1,
-        title="Existing Product",
-        image="http://example.com/image1.jpg",
-        price="99.99",
-        review_score=5,
-        link="http://example.com/product/1",
-    )
+def test_delete_favorite_product_not_in_favorites(api_user_authenticated, customer, product):
+    customer = CustomerWithProductsFactory()
+    non_existent_product = ProductFactory()
 
-    url = reverse("product_create_destroy", kwargs={"product_id": product.id})
+    url = reverse("delete_favorite_product", args=[customer.id, non_existent_product.id])
+    response = api_user_authenticated.delete(url)
 
-    response = api_client_authenticated.delete(url)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data["detail"] == "Product is not in favorites."
+    assert response.json().get("detail") == "Product is not in favorites."
+
+
+@pytest.mark.django_db
+def test_get_favorite_products_from_customer(api_user_authenticated):
+    customer = CustomerWithProductsFactory()
+
+    url = reverse("add_favorite_product", args=[customer.id])
+    response = api_user_authenticated.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+    response_data = response.json()
+
+    number_of_products = 5
+    assert len(response_data) == number_of_products
+    for product_data in response_data:
+        assert "title" in product_data
+        assert "image" in product_data
+        assert "price" in product_data
+        assert "link" in product_data
+        assert "review_score" in product_data
+
+
+@pytest.mark.django_db
+def test_get_favorite_products_without_review_score(api_user_authenticated, customer):
+    favorite = customer.favorite
+    product = ProductFactory(review_score=None)
+    FavoriteProduct.objects.create(favorite=favorite, product=product)
+
+    url = reverse("add_favorite_product", args=[customer.id])
+    response = api_user_authenticated.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+    response_data = response.json()
+
+    number_of_products = 1
+    assert len(response_data) == number_of_products
+    product_data = response_data[0]
+    assert "review_score" not in product_data
