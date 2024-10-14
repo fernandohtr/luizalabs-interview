@@ -21,5 +21,8 @@ down:
 logs:
 	@${DOCKER_LOCAL} logs -f
 
+createsuperuser:
+	${DOCKER_LOCAL} run --rm api ./manage.py createsuperuser
+
 test:
 	${DOCKER_LOCAL} run --rm api pytest -p no:warnings --cov=/app/
