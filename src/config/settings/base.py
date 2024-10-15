@@ -12,6 +12,7 @@ DJANGO_APPS = [
     "django.contrib.staticfiles",
 ]
 THIRD_PARTY_APPS = [
+    "corsheaders",
     "drf_spectacular",
     "rest_framework",
 ]
@@ -25,6 +26,7 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "7TQK-V4W9HZoRTcfVNfq4L5HVzDizj
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -136,3 +138,7 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+CORS_URLS_REGEX = r"^api/.*$"
+CORS_ALLOWED_ORIGINS = [
+    "http://challenge-api.luizalabs.com"
+]
